@@ -10,5 +10,6 @@ dependencies = [
     "scipy",
     "pandas",
     "jupyter",
-    "pyarrow"
+    "pyarrow",
+    "seaborn"
 ]
