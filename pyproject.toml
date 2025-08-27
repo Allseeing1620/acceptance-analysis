@@ -1,0 +1,13 @@
+[project]
+name = "acceptance-analysis"
+version = "0.1.0"
+description = "Add your description here"
+requires-python = ">=3.13"
+dependencies = [
+    "notebook>=7.4.5",
+    "matplotlib",
+    "numpy",
+    "scipy",
+    "pandas",
+    "jupyter"
+]
