@@ -131,8 +131,22 @@ def analyze_primary_vs_secondary_lambdas(df):
     Args:
         df: Input dataframe
     """
-    secondary_pct = calculate_percentage(df, df['lam_is_first'] == 0)
-    print(f"Secondary lambdas: {secondary_pct:.1f}%")
+    secondary_events = calculate_percentage(df, df['lam_is_first'] == 0)
+    total_events = df['event'].nunique()
+    events_with_secondary = df[df['lam_is_first'] == 0]['event'].nunique()
+    total_secondary_lambdas = (df['lam_is_first'] == 0).sum()
+    
+    print("=== Primary vs Secondary Lambda Analysis ===")
+    print(f"Total events: {total_events}")
+    print(f"Events with secondary lambdas: {events_with_secondary} "
+          f"({secondary_events:.1f}%)")
+    print(f"Total secondary lambda particles: {total_secondary_lambdas}")
+    
+    if events_with_secondary > 0:
+        avg_lambdas = total_secondary_lambdas / events_with_secondary
+        print(f"Average secondary lambdas per event: {avg_lambdas:.2f}")
+    else:
+        print("No secondary lambdas")
 
 
 # ============================================================================
@@ -823,7 +837,6 @@ def main():
     )
     
     # Proton + Pi- decay analysis
-    print("\nProton + π⁻ decay analysis...")
     plt_hist2d(
         p_pi_minus['lam_epz'], p_pi_minus['lam_epx'],
         title="Λ⁰ → p + π⁻ decay points distribution"
@@ -856,6 +869,13 @@ def main():
         min_trajectories=100,
         cmap='viridis'
     )
+
+    # 2D histogram of proton end points
+    plt_hist2d(
+        n_pi_zero['prot_epz'], n_pi_zero['prot_epx'],
+        bins=150,
+        title="Proton end points distribution"
+    )
     
     # Neutron + Pi0 decay analysis
     print("\nNeutron + π⁰ decay analysis...")
@@ -877,8 +897,15 @@ def main():
         bins=150,
         title="Gamma end points distribution"
     )
+
+    # 2D histogram of neutron end points
+    plt_hist2d(
+        n_pi_zero['neut_epz'], n_pi_zero['neut_epx'],
+        bins=150,
+        title="Neutron end points distribution"
+    )
     
-    # Trajectory histograms for neutron + pizero
+    # Trajectory histograms for neutron 
     plot_particle_trajectory_histogram(
         particle_type='neut',
         dataframe=n_pi_zero,
@@ -889,6 +916,7 @@ def main():
         cmap='viridis'
     )
 
+    # Trajectory histograms for Pi0
     plot_particle_trajectory_histogram(
         particle_type='pizero',
         dataframe=n_pi_zero,
