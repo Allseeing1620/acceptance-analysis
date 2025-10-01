@@ -504,11 +504,11 @@ def plot_particle_trajectory_histogram(particle_type, dataframe,
     plt.show()
     
     return grid_hist
-def main():
 
-    """
-    --
-    """
+
+def main():
+    """entry point"""
+
     calculate_decayed() 
 
     plot_undecayed_primary_lambdas()
