@@ -6,6 +6,8 @@ import glob
 from aa_helpers import create_plot_with_background
 from matplotlib.collections import LineCollection
 from matplotlib.colors import LogNorm
+import os
+from datetime import datetime
 
 def concat_csvs_with_unique_events(files):
     """Load and concatenate CSV files with globally unique event IDs"""
@@ -20,6 +22,16 @@ def concat_csvs_with_unique_events(files):
 
     return pd.concat(dfs, ignore_index=True)
 
+def read_files(path):
+    files = sorted(glob.glob(path))
+    if len(files) == 0:
+        print("Check the path and file name pattern.")
+    else:
+        combined_df = concat_csvs_with_unique_events(files)
+        combined_df.to_feather('combined_all_lambda_data.feather')
+    df = pd.read_feather("combined_all_lambda_data.feather")    
+
+    return df
 
 files = sorted(glob.glob('data\\k_lambda_5x41_5000evt_*.mcpart_lambda.csv.zip'))
 
@@ -55,7 +67,6 @@ n_pi_zero_decays = df_pram[
     df_pram['gamtwo_id'].notna() &
     df_pram['gamone_id'].notna()
 ].copy()
-
 
 
 def calculate_decayed():
@@ -100,7 +111,6 @@ def plot_point(x_axis, y_axis,xlabel = "z [mm]" ,ylabel = "y [mm]"):
 
 
 def plot_primary_lambda_decay_z_distribution():
-    """1D гистограмма Z-координаты распада первичных лямбд"""
     plt.figure(figsize=(12, 6))
     plt.hist(df_pram['lam_epz'], bins=80, alpha=0.7, edgecolor='black')
     plt.xlabel('Z decay vertex coordinate of Λ⁰ (mm)')
@@ -156,43 +166,30 @@ def plt_hist2d(x_axis, y_axis, bins=50, bin_size=None,
     plt.show()
 
 
-# 2Д гистограмма на фоне детектора, где распадаются лямбды (for proton+pi-)
-
-# проблемы с масштабом 
-
-
-# взять только 20 евентов (столько, сколько хорошо видно разницу) 
-# построить так: красная паочка как летят лямбды (точка старт - ф ниш), синяя палочка - как летят протоны, зеленая - пионы
 def decay_trajectories():
     sample_df = p_pi_minus_decays.iloc[50:200].head(3)
     
-    # Координаты для лямбд (красные)
-    lam_start_z = sample_df['lam_vz'].values  # начало - рождение
+    lam_start_z = sample_df['lam_vz'].values 
     lam_start_x = sample_df['lam_vx'].values
-    lam_end_z = sample_df['lam_epz'].values   # конец - распад  
+    lam_end_z = sample_df['lam_epz'].values  
     lam_end_x = sample_df['lam_epx'].values
     
-    # Координаты для протонов (синие) - летят от точки распада лямбды
-    prot_start_z = sample_df['lam_epz'].values  # начало - точка распада лямбды
+    prot_start_z = sample_df['lam_epz'].values  
     prot_start_x = sample_df['lam_epx'].values  
-    prot_end_z = sample_df['prot_epz'].values   # конец - детектирование протона
+    prot_end_z = sample_df['prot_epz'].values   
     prot_end_x = sample_df['prot_epx'].values
     
-    # Координаты для пи-минусов (зеленые) - тоже от точки распада лямбды
-    pimin_start_z = sample_df['lam_epz'].values  # начало - точка распада лямбды
+    pimin_start_z = sample_df['lam_epz'].values 
     pimin_start_x = sample_df['lam_epx'].values
-    pimin_end_z = sample_df['pimin_epz'].values  # конец - детектирование пиона
+    pimin_end_z = sample_df['pimin_epz'].values  
     pimin_end_x = sample_df['pimin_epx'].values
     
-    # Создаем сегменты для каждой частицы
     lam_segments = np.array([[[lam_start_z[i], lam_start_x[i]], [lam_end_z[i], lam_end_x[i]]] for i in range(len(sample_df))])
     prot_segments = np.array([[[prot_start_z[i], prot_start_x[i]], [prot_end_z[i], prot_end_x[i]]] for i in range(len(sample_df))])
     pimin_segments = np.array([[[pimin_start_z[i], pimin_start_x[i]], [pimin_end_z[i], pimin_end_x[i]]] for i in range(len(sample_df))])
     
-    # Создаем график
     fig, ax = create_plot_with_background(bck_image="eic_center_forward_bw.png")
     
-    # Добавляем линии траекторий
     lam_lines = LineCollection(lam_segments, color='red', alpha=0.7, linewidths=2, label='Λ⁰ trajectory')
     prot_lines = LineCollection(prot_segments, color='blue', alpha=0.7, linewidths=2, label='Proton trajectory')  
     pimin_lines = LineCollection(pimin_segments, color='lime', alpha=0.7, linewidths=2, label='π⁻ trajectory')
@@ -201,7 +198,6 @@ def decay_trajectories():
     ax.add_collection(prot_lines)
     ax.add_collection(pimin_lines)
     
-    # Добавляем точки для наглядности
     ax.scatter(lam_start_z, lam_start_x, color='darkred', s=50, marker='o', label='Λ⁰ birth', alpha=1)
     ax.scatter(lam_end_z, lam_end_x, color='red', s=50, marker='s', label='Λ⁰ decay', alpha=1)
     ax.scatter(prot_end_z, prot_end_x, color='blue', s=50, marker='^', label='Proton detection', alpha=1)
@@ -222,33 +218,26 @@ def plot_neutron_pizero_decay_trajectories():
 
     sample_df = n_pi_zero_decays.iloc[34:200].head(1)
     
-    # Координаты для лямбд (красные)
     lam_start_z = sample_df['lam_vz'].values
     lam_start_x = sample_df['lam_vx'].values
     lam_end_z = sample_df['lam_epz'].values
     lam_end_x = sample_df['lam_epx'].values
 
-    # Координаты для нейтронов (синие)
     neut_start_z = sample_df['lam_epz'].values
     neut_start_x = sample_df['lam_epx'].values  
     neut_end_z = sample_df['neut_epz'].values
     neut_end_x = sample_df['neut_epx'].values
 
-    # Координаты для пи-нолей (зеленые)
     pizero_start_z = sample_df['lam_epz'].values
     pizero_start_x = sample_df['lam_epx'].values
     pizero_end_z = sample_df['pizero_epz'].values
     pizero_end_x = sample_df['pizero_epx'].values
 
-    # Создаем сегменты
     lam_segments = np.array([[[lam_start_z[i], lam_start_x[i]], [lam_end_z[i], lam_end_x[i]]] for i in range(len(sample_df))])
     neut_segments = np.array([[[neut_start_z[i], neut_start_x[i]], [neut_end_z[i], neut_end_x[i]]] for i in range(len(sample_df))])
     pizero_segments = np.array([[[pizero_start_z[i], pizero_start_x[i]], [pizero_end_z[i], pizero_end_x[i]]] for i in range(len(sample_df))])
 
-    # Создаем график
     fig, ax = create_plot_with_background(bck_image="eic_center_forward_bw.png")
-
-    # Добавляем линии траекторий
     lam_lines = LineCollection(lam_segments, color='red', alpha=0.7, linewidths=2, label='Λ⁰ trajectory')
     neut_lines = LineCollection(neut_segments, color='blue', alpha=0.7, linewidths=2, label='Neutron trajectory')  
     pizero_lines = LineCollection(pizero_segments, color='lime', alpha=0.7, linewidths=2, label='π⁰ trajectory')
@@ -257,7 +246,6 @@ def plot_neutron_pizero_decay_trajectories():
     ax.add_collection(neut_lines)
     ax.add_collection(pizero_lines)
 
-    # Добавляем точки
     ax.scatter(lam_start_z, lam_start_x, color='darkred', s=50, marker='o', label='Λ⁰ birth', alpha=1)
     ax.scatter(lam_end_z, lam_end_x, color='red', s=50, marker='s', label='Λ⁰ decay', alpha=1)
     ax.scatter(neut_end_z, neut_end_x, color='blue', s=50, marker='^', label='Neutron detection', alpha=1)
@@ -284,7 +272,6 @@ def plot_undecayed_primary_lambdas():
 
    
 def plot_primary_vs_secondary_decay_points():
-    """График где распадаются праймари и не праймари лямбды (точки)"""
     
     fig, ax = create_plot_with_background()
     
@@ -308,7 +295,6 @@ def plot_primary_vs_secondary_decay_points():
 
 
 def plot_primary_vs_secondary_birth_points():
-    """График где рождаются праймари и не праймари лямбды (точки)"""
     
     fig, ax = create_plot_with_background()
     
@@ -334,20 +320,13 @@ import os
 from datetime import datetime
 
 def save_all_plots(output_dir="analysis_results"):
-    """
-    Сохраняет все графики в указанную папку
-    """
-    import os
-    from datetime import datetime
-    
-    # Создаем папку если не существует
+
     os.makedirs(output_dir, exist_ok=True)
     
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     results_dir = os.path.join(output_dir, f"analysis_{timestamp}")
     os.makedirs(results_dir, exist_ok=True)
     
-    print(f"Saving plots to: {results_dir}")
     
     def save_plot(func, filename, *args, **kwargs):
         try:
@@ -359,16 +338,15 @@ def save_all_plots(output_dir="analysis_results"):
         except Exception as e:
             print(f"✗ Error saving {filename}: {e}")
         finally:
-            plt.switch_backend('TkAgg')  # возвращаем нормальный backend
+            plt.switch_backend('TkAgg')  
     
-    # Сохраняем ВСЕ графики которые есть в main()
+ 
     save_plot(calculate_decayed, "01_decay_statistics.png")
     save_plot(plot_undecayed_primary_lambdas, "02_undecayed_primary_lambdas.png")
     save_plot(plot_primary_vs_secondary_decay_points, "03_primary_vs_secondary_decay_points.png")
     save_plot(plot_primary_vs_secondary_birth_points, "04_primary_vs_secondary_birth_points.png")
     save_plot(plot_primary_lambda_decay_z_distribution, "05_primary_lambda_decay_z_distribution.png")
     
-    # 2D гистограммы через lambda
     save_plot(lambda: plt_hist2d(df_pram['lam_epz'], df_pram['lam_epx'], 
                                 title="Λ⁰ decay points distribution"), 
              "06_lambda_decay_points.png")
@@ -397,7 +375,6 @@ def save_all_plots(output_dir="analysis_results"):
                                 title="Gamma end points"), 
              "13_gamma_end_points.png")
     
-    print(f"\n All plots saved to: {results_dir}")
     return results_dir
 
 def plot_particle_trajectory_histogram(particle_type, dataframe, 
@@ -406,29 +383,7 @@ def plot_particle_trajectory_histogram(particle_type, dataframe,
                                      grid_x_step=100, grid_z_step=100,
                                      min_trajectories=10, cmap='viridis',
                                      particle_name=None):
-    """
-    Универсальная функция для построения 2D гистограммы траекторий частиц
-    
-    Parameters:
-    -----------
-    particle_type : str
-        Тип частицы ('proton', 'pion', 'kaon', etc.) - для названий
-    dataframe : DataFrame
-        DataFrame с данными о частицах
-    start_x_col, start_z_col : str
-        Названия колонок с координатами начала траектории
-    end_x_col, end_z_col : str
-        Названия колонок с координатами конца траектории  
-    grid_x_step, grid_z_step : float
-        Размер ячейки сетки в мм
-    min_trajectories : int
-        Минимальное количество траекторий для отображения
-    cmap : str
-        Цветовая карта
-    particle_name : str, optional
-        Отображаемое имя частицы (если None, берется из particle_type)
-    """
-    
+
     if particle_name is None:
         particle_name = particle_type
     
@@ -552,20 +507,6 @@ def plot_particle_trajectory_histogram(particle_type, dataframe,
 def main():
 
     """
-    Сколько лямбд которые распались на протон или нейтрон или не распались вообще. (проценты) 
-
-    Есть ли лямбды, которые праймари и не распались вообще? Если они есть, показать на графике, где они распадаются. 
-
-    Сколько лямбд, которые не праймари? Сколько эвентов со вторичными лямбдами? (все распады) ДОБАВИТЬ ГИСТОГРАММЫ СКОЛЬКО ЛЯМБД В СОБЫТИИ посмотреть. 
-    добавить может 0 тк есть лямбы без лямбд
-
-    График где распадаются праймари и не праймари лямбды (точки)
-
-    График где рождаются праймари и не праймаи лямбды (точки)
-
-    1д гистограмма зет точки распада лямбды (только праймари)
-
-    2Д гистограмма на фоне детектора, где распадаются лямбды.
     --
     """
     calculate_decayed() 
@@ -585,18 +526,7 @@ def main():
            title="Λ⁰ decay points distribution")
 
     """
-    2Д гистограмма на фоне детектора, где распадаются лямбды (for proton+pi-)
-
-    взять только 20 евентов (столько, сколько хорошо видно разницу) построить так:
-      красная паочка как летят лямбды (точка старт - ф ниш), синяя палочка - как летят протоны, зеленая - пионы
-
-    2Д гистограмма пролета протона
-
-    2Д гистограмма пролета пиона
-
-    2Д гистограмма точки конца протона
-
-    2Д гистограмма точки контца пиона
+    
     """
 
     plt_hist2d(p_pi_minus_decays['lam_epz'], p_pi_minus_decays['lam_epx'], 
@@ -628,19 +558,7 @@ def main():
     )
 
     """
-    2Д гистограмма на фоне детектора, где распадаются лямбды (for neutron + pi0)
 
-    взять только 20 евентов (столько, сколько хорошо видно разницу) построить так: красная паочка как летят лямбды (точка старт - ф ниш), синяя палочка - как летят протоны, зеленая - пионы
-
-    2Д гистограмма пролета нейтрона (-)
-
-    2Д гистограмма пролета пиона (-)
-
-    конец нейтрона (!)
-
-    2Д гистограмма точки конца/разавла пи0 (!)
-
-    2Д гистограмма точки конца gamma gamma (!)
     """
 
     plt_hist2d(n_pi_zero_decays['lam_epz'], n_pi_zero_decays['lam_epx'], 
@@ -676,9 +594,6 @@ def main():
     min_trajectories=100,
     cmap='viridis'
     )
-
-
-
 
     #save_all_plots("C:/Users/User/Desktop/test/my_analysis_results")
 
