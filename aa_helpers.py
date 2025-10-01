@@ -17,7 +17,7 @@ from pathlib import Path
 from typing import List, Dict, Tuple, Optional
 
 # Default configuration for background image and calibration points
-DEFAULT_BCK_IMAGE = "eic_center_forward.png"
+DEFAULT_BCK_IMAGE = "eic_center_forward_bw.png"
 
 # Default calibration points for pixel-to-millimeter conversion
 # Format: Two correspondence points mapping (x_mm, y_mm) <-> (x_pixel, y_pixel)
