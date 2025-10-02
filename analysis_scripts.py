@@ -93,12 +93,12 @@ def print_decay_statistics(df, title="NO TITLE"):
     proton_only =  df['prot_id'].notna() & df['neut_id'].isna()
     neutron_only = df['prot_id'].isna()  & df['neut_id'].notna()
     not_decayed =  df['prot_id'].isna()  & df['neut_id'].isna()
-    crap =         df['prot_id'].notna() & df['neut_id'].notna()
+    what =         df['prot_id'].notna() & df['neut_id'].notna()
     
     p_proton = (proton_only.sum() / total) * 100
     p_neutron = (neutron_only.sum() / total) * 100
     p_not_decayed = (not_decayed.sum() / total) * 100
-    p_crap = (crap.sum() / total) * 100
+    p_crap = (what.sum() / total) * 100
     print()
 
     print(f"=== {title} ===")
@@ -106,7 +106,7 @@ def print_decay_statistics(df, title="NO TITLE"):
     print(f"Decayed to proton:  {p_proton:.1f}%")
     print(f"Decayed to neutron: {p_neutron:.1f}%")
     print(f"Not decayed:        {p_not_decayed:.1f}%")
-    print(f"crap:        {p_crap:.1f}%")
+    print(f" WHAT?:        {p_crap:.1f}%")
     print(f"total:        {p_proton+p_neutron+p_not_decayed+p_crap:.1f}%")
 
 
