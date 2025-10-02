@@ -121,6 +121,7 @@ create_combined_feather_file(
 ```
 
 ### Analysis
+
 ```python
 from analysis_scripts import main
 
@@ -131,12 +132,12 @@ main()
 from analysis_scripts import (
     load_lambda_data,
     filter_decay_modes,
-    calculate_decayed_statistics
+    print_decay_statistics
 )
 
 df = load_lambda_data('combined_all_lambda_data_18x275.feather')
 decay_modes = filter_decay_modes(df)
-calculate_decayed_statistics(df)
+print_decay_statistics(df)
 ```
 
 ## Files Summary

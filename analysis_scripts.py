@@ -3,7 +3,7 @@
 This module provides functions for analyzing Lambda particle decays,
 including primary vs secondary lambdas, decay modes, and trajectories.
 """
-
+import argparse
 import os
 from datetime import datetime
 import numpy as np
@@ -12,23 +12,6 @@ import matplotlib.pyplot as plt
 from matplotlib.collections import LineCollection
 from matplotlib.colors import LogNorm
 from aa_helpers import create_plot_with_background
-
-
-# ============================================================================
-# Data Loading
-# ============================================================================
-
-def load_lambda_data(feather_file):
-    """Load Lambda particle data from feather file.
-    
-    Args:
-        feather_file: Path to feather file
-        
-    Returns:
-        pd.DataFrame: Loaded dataframe
-    """
-    df = pd.read_feather(feather_file)
-    return df
 
 
 # ============================================================================
@@ -54,7 +37,7 @@ def filter_decay_modes(df):
     ]
     
     # Proton + pi- decays
-    p_pi_minus_decays = df_primary[
+    df_ppim = df_primary[
         df_primary['prot_id'].notna() &
         df_primary['pimin_id'].notna() &
         df_primary['neut_id'].isna() &
@@ -62,7 +45,7 @@ def filter_decay_modes(df):
     ].copy()
     
     # Neutron + pi0 -> gamma gamma decays
-    n_pi_zero_decays = df_primary[
+    df_npzero = df_primary[
         df_primary['prot_id'].isna() &
         df_primary['pimin_id'].isna() &
         df_primary['neut_id'].notna() &
@@ -71,13 +54,8 @@ def filter_decay_modes(df):
         df_primary['gamone_id'].notna()
     ].copy()
     
-    return {
-        'primary': df_primary,
-        'secondary': df_secondary,
-        'not_decayed': df_not_decayed,
-        'p_pi_minus': p_pi_minus_decays,
-        'n_pi_zero': n_pi_zero_decays
-    }
+    return df_primary, df_secondary, df_not_decayed, df_ppim, df_npzero
+
 
 
 # ============================================================================
@@ -101,7 +79,7 @@ def calculate_percentage(df_all, condition_mask):
     return percentage
 
 
-def calculate_decayed_statistics(df):
+def print_decay_statistics(df, title="NO TITLE"):
     """Calculate and print decay statistics.
     
     Args:
@@ -112,17 +90,24 @@ def calculate_decayed_statistics(df):
         print("No data available")
         return
 
-    proton_only = df['prot_id'].notna() & df['neut_id'].isna()
-    neutron_only = df['neut_id'].notna() & df['prot_id'].isna()
-    not_decayed = df['prot_id'].isna() & df['neut_id'].isna()
+    proton_only =  df['prot_id'].notna() & df['neut_id'].isna()
+    neutron_only = df['prot_id'].isna()  & df['neut_id'].notna()
+    not_decayed =  df['prot_id'].isna()  & df['neut_id'].isna()
+    crap =         df['prot_id'].notna() & df['neut_id'].notna()
     
     p_proton = (proton_only.sum() / total) * 100
     p_neutron = (neutron_only.sum() / total) * 100
     p_not_decayed = (not_decayed.sum() / total) * 100
+    p_crap = (crap.sum() / total) * 100
+    print()
 
-    print(f"\nDecayed to proton: {p_proton:.1f}%")
+    print(f"=== {title} ===")
+    print(f"Total events:       {total}")
+    print(f"Decayed to proton:  {p_proton:.1f}%")
     print(f"Decayed to neutron: {p_neutron:.1f}%")
-    print(f"Not decayed: {p_not_decayed:.1f}%")
+    print(f"Not decayed:        {p_not_decayed:.1f}%")
+    print(f"crap:        {p_crap:.1f}%")
+    print(f"total:        {p_proton+p_neutron+p_not_decayed+p_crap:.1f}%")
 
 
 def analyze_primary_vs_secondary_lambdas(df):
@@ -792,38 +777,46 @@ def save_all_plots(decay_modes, output_dir="analysis_results"):
 
 def main():
     """Main entry point for analysis."""
+
+    parser = argparse.ArgumentParser(description='Process feather tables out of mcpart_lambda.csv files')
+    parser.add_argument('files', nargs='+', help='Input Feather file(s) to combine (wildcards supported)')
+    parser.add_argument('-o', '--output', default='results', help='Output directory to save files')
+    args = parser.parse_args()
+    print("Arguments:")
+    print(args.files)
+    print(args.output)
+
     # Load data
     print("Loading data...")
-    df = load_lambda_data("combined_all_lambda_data_18x275.feather")
+    df = pd.read_feather(args.files[0])
     print(f"Loaded {len(df)} events")
     
     # Filter decay modes
     print("\nFiltering decay modes...")
-    decay_modes = filter_decay_modes(df)
+    df_primary, df_secondary, df_not_decayed, df_ppim, df_npzero = filter_decay_modes(df)
     
     # Print statistics
     print("\n" + "="*60)
     print("DECAY STATISTICS")
     print("="*60)
-    calculate_decayed_statistics(df)
+    print_decay_statistics(df, "All events")
+    print_decay_statistics(df_primary, "Only primary")
+    print_decay_statistics(df_secondary, "Only secondary")
+
     
     print("\n" + "="*60)
     print("PRIMARY VS SECONDARY")
     print("="*60)
     analyze_primary_vs_secondary_lambdas(df)
     
-    plot_undecayed_primary_lambdas(df, decay_modes['not_decayed'])
+    plot_undecayed_primary_lambdas(df, df_not_decayed)
     
     # Visualization section
     print("\n" + "="*60)
     print("GENERATING PLOTS")
     print("="*60)
     
-    df_primary = decay_modes['primary']
-    df_secondary = decay_modes['secondary']
-    p_pi_minus = decay_modes['p_pi_minus']
-    n_pi_zero = decay_modes['n_pi_zero']
-    
+
     # Primary vs Secondary comparisons
     plot_primary_vs_secondary_decay_points(df_primary, df_secondary)
     plot_primary_vs_secondary_birth_points(df_primary, df_secondary)
@@ -833,26 +826,29 @@ def main():
     
     plt_hist2d(
         df_primary['lam_epz'], df_primary['lam_epx'],
+        bins=150,
         title="Λ⁰ decay points distribution"
     )
     
     # Proton + Pi- decay analysis
     plt_hist2d(
-        p_pi_minus['lam_epz'], p_pi_minus['lam_epx'],
+        df_ppim['lam_epz'], df_ppim['lam_epx'],
+        bins=150,
         title="Λ⁰ → p + π⁻ decay points distribution"
     )
     
-    plot_decay_trajectories(p_pi_minus)
+    plot_decay_trajectories(df_ppim)
     
     plt_hist2d(
-        p_pi_minus['pimin_epz'], p_pi_minus['pimin_epx'],
+        df_ppim['pimin_epz'], df_ppim['pimin_epx'],
+        bins=150,
         title="π⁻ end points distribution"
     )
     
     # Trajectory histograms for proton + pion
     plot_particle_trajectory_histogram(
         particle_type='proton',
-        dataframe=p_pi_minus,
+        dataframe=df_ppim,
         start_x_col='prot_vx', start_z_col='prot_vz',
         end_x_col='prot_epx', end_z_col='prot_epz',
         grid_x_step=100, grid_z_step=100,
@@ -862,7 +858,7 @@ def main():
 
     plot_particle_trajectory_histogram(
         particle_type='pion',
-        dataframe=p_pi_minus,
+        dataframe=df_ppim,
         start_x_col='pimin_vx', start_z_col='pimin_vz',
         end_x_col='pimin_epx', end_z_col='pimin_epz',
         grid_x_step=100, grid_z_step=100,
@@ -872,7 +868,7 @@ def main():
 
     # 2D histogram of proton end points
     plt_hist2d(
-        n_pi_zero['prot_epz'], n_pi_zero['prot_epx'],
+        df_ppim['prot_epz'], df_ppim['prot_epx'],
         bins=150,
         title="Proton end points distribution"
     )
@@ -880,27 +876,29 @@ def main():
     # Neutron + Pi0 decay analysis
     print("\nNeutron + π⁰ decay analysis...")
     plt_hist2d(
-        n_pi_zero['lam_epz'], n_pi_zero['lam_epx'],
+        df_npzero['lam_epz'], df_npzero['lam_epx'],
+        bins=150,
         title="n + π⁰ decay points distribution"
     )
     
-    plot_neutron_pizero_decay_trajectories(n_pi_zero)
+    plot_neutron_pizero_decay_trajectories(df_npzero)
 
     plt_hist2d(
-        n_pi_zero['pizero_epz'], n_pi_zero['pizero_epx'],
+        df_npzero['pizero_epz'], df_npzero['pizero_epx'],
+        bins=150,
         title="π⁰ decay points distribution"
     )
     
     # 2D histogram of gamma gamma end points
     plt_hist2d(
-        n_pi_zero['gamone_epz'], n_pi_zero['gamone_epx'],
+        df_npzero['gamone_epz'], df_npzero['gamone_epx'],
         bins=150,
         title="Gamma end points distribution"
     )
 
     # 2D histogram of neutron end points
     plt_hist2d(
-        n_pi_zero['neut_epz'], n_pi_zero['neut_epx'],
+        df_npzero['neut_epz'], df_npzero['neut_epx'],
         bins=150,
         title="Neutron end points distribution"
     )
@@ -908,7 +906,7 @@ def main():
     # Trajectory histograms for neutron 
     plot_particle_trajectory_histogram(
         particle_type='neut',
-        dataframe=n_pi_zero,
+        dataframe=df_npzero,
         start_x_col='neut_vx', start_z_col='neut_vz',
         end_x_col='neut_epx', end_z_col='neut_epz',
         grid_x_step=100, grid_z_step=100,
@@ -919,7 +917,7 @@ def main():
     # Trajectory histograms for Pi0
     plot_particle_trajectory_histogram(
         particle_type='pizero',
-        dataframe=n_pi_zero,
+        dataframe=df_npzero,
         start_x_col='pizero_vx', start_z_col='pizero_vz',
         end_x_col='pizero_epx', end_z_col='pizero_epz',
         grid_x_step=300, grid_z_step=300,
